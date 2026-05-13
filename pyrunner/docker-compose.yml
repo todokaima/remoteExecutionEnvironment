@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  pyrunner:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      # Give the app access to the host Docker daemon so it can
+      # spin up sibling python containers
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      RUNNER_DOCKER_IMAGE: python:3.11-slim
+      RUNNER_TIMEOUT_SECONDS: "10"
+      RUNNER_MEMORY_LIMIT: "64m"
+      RUNNER_CPU_QUOTA: "50000"
+    restart: unless-stopped

@@ -1,0 +1,13 @@
+# Deny ALL ingress and egress for pods in the sandbox namespace.
+# Sandbox pods (python runners) must not reach the internet or internal services.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: sandbox
+spec:
+  podSelector: {}   # applies to every pod in the namespace
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress/egress rules = everything is blocked

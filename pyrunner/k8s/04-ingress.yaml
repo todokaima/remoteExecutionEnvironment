@@ -1,0 +1,22 @@
+# Optional — only needed if you want to access via a hostname.
+# For minikube: run `minikube addons enable ingress` first.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pyrunner
+  namespace: pyrunner
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: pyrunner.local    # add `$(minikube ip) pyrunner.local` to /etc/hosts
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pyrunner
+                port:
+                  number: 80

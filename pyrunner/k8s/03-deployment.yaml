@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pyrunner
+  namespace: pyrunner
+  labels:
+    app: pyrunner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pyrunner
+  template:
+    metadata:
+      labels:
+        app: pyrunner
+    spec:
+      serviceAccountName: pyrunner   # <-- gives it the RBAC permissions above
+
+      containers:
+        - name: pyrunner
+          # Replace with your own image after `docker build` + push:
+          #   docker build -t your-registry/pyrunner:latest .
+          #   docker push your-registry/pyrunner:latest
+          image: pyrunner:latest
+          imagePullPolicy: IfNotPresent   # use Never for minikube local images
+
+          ports:
+            - containerPort: 8080
+
+          env:
+            - name: RUNNER_K8S_NAMESPACE
+              value: "sandbox"
+            - name: RUNNER_K8S_IMAGE
+              value: "python:3.11-slim"
+            - name: RUNNER_TIMEOUT_SECONDS
+              value: "30"
+            - name: RUNNER_MEMORY_LIMIT
+              value: "64Mi"
+            - name: RUNNER_CPU_LIMIT
+              value: "500m"
+
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "1"
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pyrunner
+  namespace: pyrunner
+spec:
+  selector:
+    app: pyrunner
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP   # change to LoadBalancer or use Ingress for external access

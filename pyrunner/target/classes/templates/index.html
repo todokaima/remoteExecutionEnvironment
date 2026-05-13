@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>PyRunner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #0d0f14;
+            --surface:   #13161e;
+            --border:    #1f2430;
+            --accent:    #f0c040;
+            --accent2:   #40c0a0;
+            --danger:    #e05050;
+            --text:      #d8dce8;
+            --muted:     #5a6070;
+            --mono:      'JetBrains Mono', monospace;
+            --display:   'Syne', sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* ── Header ─────────────────────────────── */
+        header {
+            width: 100%;
+            border-bottom: 1px solid var(--border);
+            padding: 18px 40px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .logo {
+            font-family: var(--display);
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+        .logo span { color: var(--accent); }
+        .badge {
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            background: var(--border);
+            color: var(--accent2);
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--accent2);
+        }
+
+        /* ── Main layout ─────────────────────────── */
+        main {
+            width: 100%;
+            max-width: 1000px;
+            padding: 40px 24px 60px;
+            display: grid;
+            gap: 20px;
+        }
+
+        /* ── Editor panel ────────────────────────── */
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(255,255,255,0.02);
+        }
+        .panel-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .dots { display: flex; gap: 6px; }
+        .dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+        }
+        .dot-r { background: #e05050; }
+        .dot-y { background: #f0c040; }
+        .dot-g { background: #40c060; }
+
+        textarea#code {
+            display: block;
+            width: 100%;
+            min-height: 340px;
+            background: transparent;
+            border: none;
+            outline: none;
+            resize: vertical;
+            padding: 20px;
+            font-family: var(--mono);
+            font-size: 0.88rem;
+            line-height: 1.65;
+            color: var(--text);
+            tab-size: 4;
+            caret-color: var(--accent);
+        }
+        textarea#code::placeholder { color: var(--muted); }
+        textarea#code:focus { background: rgba(240,192,64,0.02); }
+
+        /* ── Run button ──────────────────────────── */
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        #runBtn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent);
+            color: #0d0f14;
+            border: none;
+            border-radius: 7px;
+            padding: 11px 28px;
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.12s, box-shadow 0.12s, opacity 0.12s;
+            letter-spacing: 0.04em;
+        }
+        #runBtn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(240,192,64,0.35);
+        }
+        #runBtn:active:not(:disabled) { transform: translateY(0); }
+        #runBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        #clearBtn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            border-radius: 7px;
+            padding: 10px 20px;
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        #clearBtn:hover { border-color: var(--muted); color: var(--text); }
+
+        .spinner {
+            display: none;
+            width: 14px; height: 14px;
+            border: 2px solid rgba(13,15,20,0.3);
+            border-top-color: #0d0f14;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #runBtn.loading .spinner { display: block; }
+        #runBtn.loading .run-label { display: none; }
+
+        /* ── Output panel ────────────────────────── */
+        #outputPanel {
+            display: none;
+            animation: fadeUp 0.25s ease;
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        #outputPanel.visible { display: block; }
+
+        .output-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .exit-badge {
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 3px 9px;
+            border-radius: 4px;
+        }
+        .exit-ok  { background: rgba(64,192,96,0.15);  color: #40c060; border: 1px solid #40c060; }
+        .exit-err { background: rgba(224,80,80,0.15);   color: var(--danger); border: 1px solid var(--danger); }
+        .exit-to  { background: rgba(240,192,64,0.15);  color: var(--accent); border: 1px solid var(--accent); }
+
+        .duration {
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+
+        .output-block {
+            margin: 0;
+            padding: 18px 20px;
+            font-family: var(--mono);
+            font-size: 0.83rem;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 420px;
+            overflow-y: auto;
+            color: var(--text);
+        }
+        .output-block.stderr-block { color: #f08080; }
+        .output-block::-webkit-scrollbar { width: 6px; }
+        .output-block::-webkit-scrollbar-track { background: transparent; }
+        .output-block::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .separator { border: none; border-top: 1px solid var(--border); }
+
+        /* ── Error toast ─────────────────────────── */
+        #errorToast {
+            display: none;
+            background: rgba(224,80,80,0.12);
+            border: 1px solid var(--danger);
+            border-radius: 8px;
+            padding: 12px 18px;
+            font-size: 0.82rem;
+            color: #f08080;
+            animation: fadeUp 0.2s ease;
+        }
+        #errorToast.visible { display: block; }
+
+        /* ── Footer ─────────────────────────────── */
+        footer {
+            margin-top: auto;
+            padding: 16px;
+            font-size: 0.68rem;
+            color: var(--muted);
+            text-align: center;
+            letter-spacing: 0.06em;
+        }
+        footer a { color: var(--muted); text-decoration: none; }
+        footer a:hover { color: var(--text); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">Py<span>Runner</span></div>
+    <span class="badge">Docker Sandbox</span>
+</header>
+
+<main>
+
+    <!-- Editor -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="dots">
+                <div class="dot dot-r"></div>
+                <div class="dot dot-y"></div>
+                <div class="dot dot-g"></div>
+            </div>
+            <span class="panel-title">script.py</span>
+            <span style="width:52px"></span><!-- spacer -->
+        </div>
+        <textarea id="code" placeholder="# Write your Python script here&#10;&#10;name = 'World'&#10;print(f'Hello, {name}!')&#10;print(f'2 + 2 = {2 + 2}')" spellcheck="false"></textarea>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+        <button id="runBtn" onclick="runCode()">
+            <span class="run-label">▶ Run</span>
+            <div class="spinner"></div>
+        </button>
+        <button id="clearBtn" onclick="clearAll()">Clear</button>
+    </div>
+
+    <!-- Error toast -->
+    <div id="errorToast"></div>
+
+    <!-- Output -->
+    <div class="panel" id="outputPanel">
+        <div class="panel-header">
+            <div class="dots">
+                <div class="dot dot-r"></div>
+                <div class="dot dot-y"></div>
+                <div class="dot dot-g"></div>
+            </div>
+            <span class="panel-title">Output</span>
+            <div class="output-meta" id="outputMeta"></div>
+        </div>
+        <pre id="stdoutBlock" class="output-block"></pre>
+        <hr class="separator" id="stderrSep" style="display:none"/>
+        <pre id="stderrBlock" class="output-block stderr-block" style="display:none"></pre>
+    </div>
+
+</main>
+
+<footer>
+    Runs in an isolated Docker container · network disabled · <span id="imgLabel">python:3.11-slim</span>
+</footer>
+
+<script>
+    // Tab support in editor
+    document.getElementById('code').addEventListener('keydown', function(e) {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const s = this.selectionStart, end = this.selectionEnd;
+            this.value = this.value.substring(0, s) + '    ' + this.value.substring(end);
+            this.selectionStart = this.selectionEnd = s + 4;
+        }
+    });
+
+    // Ctrl/Cmd+Enter shortcut
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runCode();
+    });
+
+    async function runCode() {
+        const code = document.getElementById('code').value.trim();
+        const btn  = document.getElementById('runBtn');
+        const errT = document.getElementById('errorToast');
+
+        errT.classList.remove('visible');
+
+        if (!code) {
+            showError('Please enter some Python code first.');
+            return;
+        }
+
+        btn.classList.add('loading');
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                showError(data.error || 'An unexpected error occurred.');
+                return;
+            }
+
+            renderOutput(data);
+
+        } catch (err) {
+            showError('Could not reach the server. Is Spring Boot running?');
+        } finally {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+    }
+
+    function renderOutput(data) {
+        const panel   = document.getElementById('outputPanel');
+        const meta    = document.getElementById('outputMeta');
+        const stdout  = document.getElementById('stdoutBlock');
+        const stderr  = document.getElementById('stderrBlock');
+        const stderrSep = document.getElementById('stderrSep');
+
+        // Exit badge
+        let badgeClass, badgeText;
+        if (data.timedOut) {
+            badgeClass = 'exit-to'; badgeText = 'TIMED OUT';
+        } else if (data.exitCode === 0) {
+            badgeClass = 'exit-ok'; badgeText = 'EXIT 0';
+        } else {
+            badgeClass = 'exit-err'; badgeText = 'EXIT ' + data.exitCode;
+        }
+
+        meta.innerHTML = `
+            <span class="exit-badge ${badgeClass}">${badgeText}</span>
+            <span class="duration">${data.durationMs}ms</span>
+        `;
+
+        stdout.textContent = data.stdout || '(no output)';
+
+        if (data.stderr && data.stderr.trim()) {
+            stderrSep.style.display = '';
+            stderr.style.display    = '';
+            stderr.textContent      = data.stderr;
+        } else {
+            stderrSep.style.display = 'none';
+            stderr.style.display    = 'none';
+        }
+
+        panel.classList.add('visible');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function showError(msg) {
+        const t = document.getElementById('errorToast');
+        t.textContent = '⚠ ' + msg;
+        t.classList.add('visible');
+    }
+
+    function clearAll() {
+        document.getElementById('code').value = '';
+        document.getElementById('outputPanel').classList.remove('visible');
+        document.getElementById('errorToast').classList.remove('visible');
+        document.getElementById('code').focus();
+    }
+</script>
+</body>
+</html>

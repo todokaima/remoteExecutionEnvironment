@@ -1,0 +1,41 @@
+# ServiceAccount that the Spring Boot app runs as
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pyrunner
+  namespace: pyrunner
+---
+# Role in the SANDBOX namespace — lets the app create/watch/delete Jobs, Pods, ConfigMaps
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: job-runner
+  namespace: sandbox
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "get", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+# Bind the pyrunner ServiceAccount (in pyrunner ns) to the role (in sandbox ns)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pyrunner-job-runner
+  namespace: sandbox
+subjects:
+  - kind: ServiceAccount
+    name: pyrunner
+    namespace: pyrunner
+roleRef:
+  kind: Role
+  name: job-runner
+  apiGroup: rbac.authorization.k8s.io
